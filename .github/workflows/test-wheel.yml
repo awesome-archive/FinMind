@@ -1,0 +1,36 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: test build python package
+
+on:
+  pull_request:
+    branches: [ master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Named `wheel`, not `build`: this job only builds a wheel and runs no tests.
+  # Sharing the name `build` with the test job in python-package.yml made the
+  # two indistinguishable as branch-protection required checks, so a 10-second
+  # wheel build could satisfy a requirement meant for the full test suite.
+  wheel:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        # Python 3.7 dropped because dev dependency black==24.8.0 requires >=3.8
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14" ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+      - name: test wheel build
+        env:
+          CI_COMMIT_TAG: 1.1.1
+        run: uv build --python ${{ matrix.python-version }}
